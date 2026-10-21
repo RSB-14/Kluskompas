@@ -37,6 +37,7 @@ a{color:var(--main)}.source{display:block;padding:10px;border:1px solid var(--li
 nav{position:fixed;bottom:0;left:0;right:0;border-top:1px solid var(--line);background:#fffffff1;backdrop-filter:blur(12px);display:flex;justify-content:center;gap:clamp(9px,7vw,85px);padding:8px 8px calc(10px + env(safe-area-inset-bottom))}
 nav button{background:none;border:0;color:#7c9482;min-width:63px;display:grid;place-items:center;gap:2px;font-size:11px;font-weight:750}
 nav button .symbol{font-size:23px}nav button.active{color:var(--main)}
+.guide{border:1px solid var(--line);border-radius:12px;margin:10px 0;background:#fcfefc;overflow:hidden}.guide summary{padding:14px 12px;cursor:pointer;font-weight:800;list-style-position:inside}.guide[open] summary{background:var(--pale)}.guide-body{padding:8px 16px 15px}.guide-body ul{padding-left:21px}.guide-body li{margin:9px 0}.mistake{background:#fff7eb;color:#795329;padding:10px;border-radius:10px}
 footer{font-size:11px;color:#8a9b8f;text-align:center;padding-top:20px}
 @media(max-width:600px){.cards{grid-template-columns:1fr 1fr}.columns{grid-template-columns:1fr}.panel{padding:16px}.hero{padding:24px 20px 45px}.askcard{margin:-25px 9px 25px}}
 @media print{header,nav,.controls,.askcard{display:none!important}.panel{border:none;box-shadow:none;padding:4px}.shell{padding:0}}
@@ -68,39 +69,101 @@ function openQuestion(q){question=String(q||"").trim();if(!question){alert("Besc
 function ask(){root.innerHTML='<div class="eyebrow muted">Persoonlijk klusadvies</div><h1>Wat wil je weten?</h1><section class="panel"><form id="ask-form"><div class="field"><label for="q">Jouw klusvraag</label><textarea required maxlength="2500" id="q" placeholder="Bijvoorbeeld: wat is de beste manier om een vloer voor te bereiden?">'+esc(question)+'</textarea></div><div class="field"><label for="picture">Foto (optioneel)</label><input type="file" id="picture" accept="image/*"><span class="small muted" id="pic-status">Een foto wordt uitsluitend bij het versturen naar de AI-aanbieder doorgestuurd.</span></div><button class="btn" type="submit">Stel mijn vraag →</button></form></section><div class="info">'+(apiKey?"AI-sleutel is actief voor dit tabblad. Antwoorden en productadviezen worden niet onafhankelijk geverifieerd.":"Voor vrije vragen is een eigen Gemini API-sleutel nodig. De ingebouwde zoldervloerdemo werkt zonder sleutel.")+'</div><div class="row"><button class="btn alt" onclick="openFloor()">Probeer de zoldervloerdemo</button><button class="btn outline" onclick="go(\'settings\')">AI instellen</button></div>';
 $("ask-form").onsubmit=function(e){e.preventDefault();openQuestion($("q").value)};
 $("picture").onchange=function(e){var f=e.target.files[0];if(!f)return;if(!f.type.startsWith("image/")||f.size>15000000){alert("Kies een afbeelding kleiner dan 15 MB.");return}var reader=new FileReader();reader.onload=function(){var img=new Image();img.onload=function(){var rate=Math.min(1,1280/Math.max(img.width,img.height));var c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*rate));c.height=Math.max(1,Math.round(img.height*rate));c.getContext("2d").drawImage(img,0,0,c.width,c.height);pic=c.toDataURL("image/jpeg",0.8).split(",")[1];$("pic-status").textContent="Foto toegevoegd (alleen voor deze vraag)."};img.src=reader.result};reader.readAsDataURL(f)}}
-function floor(){root.innerHTML='<div class="eyebrow muted">Voorbeeldklus</div><h1>Zoldervloer egaliseren</h1><div class="info">Eerst situatie en ondergrond bepalen. Deze demo doet geen fysieke inspectie en keurt geen productsysteem goed.</div><form class="panel" id="floor-form">'+
+function floor(){root.innerHTML='<div class="eyebrow muted">Voorbeeldklus</div><h1>Zoldervloer egaliseren</h1><div class="info">Eerst situatie en ondergrond bepalen. Deze demonstratie geeft een gedetailleerde voorbereidingschecklist, maar doet geen fysieke inspectie en keurt geen productsysteem goed.</div><form class="panel" id="floor-form">'+
 '<div class="field"><label>1. Welke ondergrond heb je?</label><select id="base"><option value="unknown">Weet ik niet</option><option value="cement">Zandcement</option><option value="concrete">Beton</option><option value="calcium">Anhydriet / calciumsulfaat</option><option value="wood">Hout of platen</option></select></div>'+
 '<div class="field"><label>2. Welke vloerafwerking wil je?</label><select id="finish"><option value="unknown">Weet ik nog niet</option><option value="pvc">Verlijmd PVC</option><option value="click">Laminaat / klik-PVC</option><option value="tiles">Tegels</option><option value="carpet">Tapijt</option></select></div>'+
 '<div class="columns"><div class="field"><label>3. Hoogteverschil</label><select id="gap"><option value="unknown">Nog niet gemeten</option><option value="a">0 tot 3 mm</option><option value="b">3 tot 10 mm</option><option value="c">10 tot 30 mm</option><option value="d">Meer dan 30 mm</option></select></div><div class="field"><label>4. Vloeroppervlakte (m²)</label><input type="number" min="0" step="0.5" placeholder="Bijvoorbeeld 30" id="area"></div></div>'+
-'<div class="columns"><div class="field"><label>5. Vloerverwarming?</label><select id="heat"><option value="unknown">Weet ik niet</option><option value="yes">Ja</option><option value="no">Nee</option></select></div><div class="field"><label>6. Restvocht gemeten?</label><select id="moist"><option value="no">Nee</option><option value="yes">Ja, meetrapport beschikbaar</option></select></div></div><button class="btn" type="submit">Genereer mijn eerste plan →</button></form>';
-$("floor-form").onsubmit=function(e){e.preventDefault();latest={type:"floor",question:question,inputs:{base:$("base").value,finish:$("finish").value,gap:$("gap").value,area:Number($("area").value)||0,heat:$("heat").value,moist:$("moist").value}};go("result")}}
+'<div class="columns"><div class="field"><label>5. Vloerverwarming?</label><select id="heat"><option value="unknown">Weet ik niet</option><option value="yes">Ja</option><option value="no">Nee</option></select></div><div class="field"><label>6. Restvocht gemeten?</label><select id="moist"><option value="no">Nee</option><option value="yes">Ja, meetrapport beschikbaar</option></select></div></div><div class="columns"><div class="field"><label>7. Zie je gaten, kieren of openingen?</label><select id="seams"><option value="unknown">Nog niet goed gecontroleerd</option><option value="yes">Ja, er zijn openingen</option><option value="no">Nee, niets zichtbaar</option></select></div><div class="field"><label>8. Zie je dilatatie- of bewegingsvoegen?</label><select id="joints"><option value="unknown">Weet ik niet</option><option value="yes">Ja, herkenbare voeg(en)</option><option value="no">Niet zichtbaar</option></select></div></div><div class="field"><label>9. Zijn er trapopeningen, leidingdoorvoeren of open randen?</label><select id="openings"><option value="unknown">Nog niet gecontroleerd</option><option value="yes">Ja</option><option value="no">Nee</option></select></div><button class="btn" type="submit">Genereer mijn uitgebreide klusplan →</button></form>';
+$("floor-form").onsubmit=function(e){e.preventDefault();latest={type:"floor",question:question,inputs:{base:$("base").value,finish:$("finish").value,gap:$("gap").value,area:Number($("area").value)||0,heat:$("heat").value,moist:$("moist").value,seams:$("seams").value,joints:$("joints").value,openings:$("openings").value}};go("result")}}
 function floorAdvice(x){
 var bases={unknown:"Nog onbekend",cement:"Zandcement",concrete:"Beton",calcium:"Anhydriet / calciumsulfaat",wood:"Hout of plaatmateriaal"};
 var finishes={unknown:"Nog niet gekozen",pvc:"Verlijmd PVC",click:"Laminaat / klik-PVC",tiles:"Tegels",carpet:"Tapijt"};
 var checks=[];
-if(x.base==="unknown")checks.push("Stel eerst vast wat voor dekvloer aanwezig is; dit bepaalt het geschikte systeem.");
-if(x.finish==="unknown")checks.push("Bepaal de geplande vloerafwerking, omdat vlakheidseisen verschillen.");
-if(x.gap==="unknown")checks.push("Meet het vloeroppervlak met een lange rei of laser en leg verschillen vast.");
-if(x.gap==="d")checks.push("Bij meer dan 30 mm hoogteverschil eerst een passende opbouw onderzoeken, niet zomaar standaard egaline kiezen.");
-if(x.base==="wood")checks.push("Hout vergt een speciaal goedgekeurd egalisatiesysteem. Geen standaard egaline zonder geschiktheidsbewijs.");
-if(x.base==="calcium")checks.push("Bij calciumsulfaat zijn specifieke eisen aan voorbereiding, primer en restvocht belangrijk.");
-if(x.heat==="unknown")checks.push("Controleer of er vloerverwarming aanwezig is.");
-if(x.moist==="no")checks.push("Laat bij nieuwbouw het restvocht beoordelen volgens de eisen van het gekozen vloersysteem.");
-var steps=[
-["Ondergrond onderzoeken","Controleer type dekvloer, scheuren, hechting, vervuiling en eventuele naden en dilataties."],
-["Meten en documenteren","Meet vlakheid, hoogteverschillen, vocht en gewenste eindhoogte. Foto alleen is niet genoeg."],
-["Compatibele materialen kiezen","Kies primer en egalisatiemiddel als passend systeem volgens actuele technische productbladen."],
-["Voorbereiden","Verwijder losse delen en stof. Behandel gebreken en randvoegen volgens fabrikantinstructies."],
-["Egaliseren","Volg het exacte productvoorschrift voor mengverhouding, minimale/maximale laagdikte en verwerkingstijd."],
-["Controleren en afwerken","Controleer vlakheid en restvocht en respecteer de vrijgavetijden vóór de afwerkvloer."]
+if(x.base==="unknown")checks.push("Ondergrond onbekend: bepaal eerst of dit beton, zandcement, calciumsulfaat of een plaatvloer is. Primer en egalisatie verschillen.");
+if(x.finish==="unknown")checks.push("Afwerking niet gekozen: bepaal welke vloer er later op komt en vraag de bijbehorende vlakheidseis op.");
+if(x.gap==="unknown")checks.push("Hoogteverschil niet gemeten: gebruik een rei/laser en bepaal óók de gemiddelde benodigde laagdikte.");
+if(x.gap==="d")checks.push("Verschillen groter dan 30 mm: laat eerst controleren of een andere opbouw of reparatiemortel nodig is; gewone egaline is niet vanzelf geschikt.");
+if(x.base==="wood")checks.push("Een plaat- of houten vloer vraagt een speciaal systeem, voldoende stijfheid en eventueel wapeningsmaatregelen; gebruik niet automatisch cementgebonden egaline.");
+if(x.base==="calcium")checks.push("Bij een anhydriet-/calciumsulfaatvloer gelden specifieke eisen voor toplaag, schuren, primer en vocht.");
+if(x.heat==="unknown")checks.push("Controleer of er vloerverwarming aanwezig is; neem zo nodig het opstook- en afkoelprotocol mee.");
+if(x.moist!=="yes")checks.push("Het restvocht is niet gecontroleerd. Laat het beoordelen volgens het gekozen productsysteem en de toekomstige vloerafwerking.");
+if(!x.seams||x.seams==="unknown")checks.push("Inspecteer systematisch alle gaten, kieren en naden: vloeroppervlak, wand-/vloeraansluiting, trapgat, leidingen en drempels.");
+if(x.seams==="yes")checks.push("Er zijn openingen: bepaal per opening of het om een onbedoeld lek, een scheur of een functionele bewegingsvoeg gaat; kies daarna een passend afdicht- of herstelmiddel.");
+if(!x.joints||x.joints==="unknown")checks.push("Zoek naar constructieve/werkende voegen. Niet alle naden mogen worden dichtgekit of overgoten.");
+if(x.joints==="yes")checks.push("Zichtbare bewegingsvoegen: niet starrely opvullen; de vereiste beweging moet in het uiteindelijke systeem behouden blijven.");
+if(!x.openings||x.openings==="unknown")checks.push("Controleer trapopeningen, leidingdoorvoeren en open randen op plekken waar egaline naar beneden of naast de vloer kan lopen.");
+if(x.openings==="yes")checks.push("Er zijn doorvoeren of open randen: maak vóór het gieten een lekdichte, passende begrenzing zonder functionele randvoegen te blokkeren.");
+var plan=[
+{title:"1. Vaststellen welke vloer je hebt",body:[
+"Controleer de bouwdocumentatie of vraag de bouwer naar het dekvloertype: zandcement, beton, anhydriet/calciumsulfaat of hout/plaatmateriaal.",
+"Controleer of de vloer dragend of zwevend is, of er isolatie en vloerverwarming onder zitten en of er reeds scheuren of holklinkende zones zijn.",
+"Waarom: deze gegevens bepalen welke primer en egalisatiemortel compatibel zijn en of extra gewicht en vocht aanvaardbaar zijn."
+],mistake:"Niet op kleur alleen afgaan; zandcement en anhydriet lijken soms op elkaar."},
+{title:"2. Eindafwerking en hoogte bepalen",body:[
+"Kies de afwerkvloer: bijvoorbeeld verlijmd PVC, klikvloer of tegels. Bepaal de benodigde vlakheid met de voorschriften van de afwerkvloerenleverancier.",
+"Controleer deuren, traptreden, trapgat, drempels en aangrenzende ruimten. Egaliseren verhoogt de vloer en kan hoogteverschillen creëren.",
+"Meet op een raster de lokale pieken en kuilen met een rei en eventueel laser. Een gemeten grootste hoogteverschil is niet hetzelfde als de gemiddelde gietdikte."
+],mistake:"Een vloer hoeft niet per se waterpas te zijn om geschikt te zijn; vlakheid en afschot zijn verschillende zaken."},
+{title:"3. Vocht, draagkracht en toplaag beoordelen",body:[
+"Laat restvocht meten met een geschikte, door de vloerleverancier voorgeschreven methode. Een nieuwbouwvloer kan nog te vochtig zijn om af te werken.",
+"Controleer op poederende of zwakke lagen, vervuiling, losse delen, scheuren en holle plekken.",
+"Bij calciumsulfaat kan een zwakke toplaag mechanisch moeten worden verwijderd; gebruik vervolgens de juiste primer."
+],mistake:"Een vloer die droog aanvoelt is niet automatisch voldoende droog voor egalisatie of PVC."},
+{title:"4. Verschil maken tussen kieren, scheuren en bewegingsvoegen",body:[
+"Maak een ronde langs de hele ruimte. Markeer haarlijnscheurtjes, diepe scheuren, open randen, plaatnaden, doorvoeren en bestaande dilatatie-/bewegingsvoegen afzonderlijk.",
+"Onbedoelde openingen kunnen doorgaans worden afgedicht tegen lekkage. Brede/diepe gaten of scheuren vragen vaak een geschikte reparatiemortel of een speciaal herstelsysteem.",
+"Een bestaande dilatatievoeg of functionele bewegingsvoeg mag je niet eenvoudig volledig star dichtmaken of met egaline overbruggen. Volg het detail van de systeemfabrikant."
+],mistake:"Niet alle naden dichtkitten: een rand- of dilatatievoeg heeft vaak juist een bewegingsfunctie."},
+{title:"5. Gaten en kieren tegen weglopen van egaline afdichten",body:[
+"Controleer met extra aandacht de zolder: naden langs de wand, openingen bij het trapgat, kieren tussen vloerdelen en ruimtes rond leidingen. Egaline is vloeibaar en kan via kleine openingen wegstromen.",
+"Kleine, niet-werkende kieren kun je alleen met geschikte, voor het gekozen systeem toegelaten acrylaatkit of een passende afdichtpasta afsluiten. Laat het afdichtmiddel voldoende uitharden volgens het productblad.",
+"Gebruik voor diepere of bredere gaten een geschikte vloerreparatiemortel of systeemproduct. Voor open randen kan tijdelijk een fysieke, lekdichte begrenzing nodig zijn die hoger is dan de geplande egalisatielaag.",
+"Controleer na het afdichten visueel of er geen openingen of lekwegen overblijven. Vergeet de achterzijde van trapopeningen en alle leidingdoorvoeren niet."
+],mistake:"Geen willekeurige siliconenkit of bouwschuim kiezen op een hechtvlak; het systeem moet de gebruikte producten expliciet toelaten."},
+{title:"6. Randstroken en dilataties juist behandelen",body:[
+"Bij een zwevende of bewegende vloer is een passende, samendrukbare randstrook langs de wanden en vaste onderdelen vaak noodzakelijk om spanningen en geluidsbruggen te voorkomen.",
+"De rand moet tegelijk lekdicht zijn voor de egaline, zonder de noodzakelijke ruimte voor beweging op te vullen met hard materiaal.",
+"Leg bestaande dilataties vast en zorg dat die volgens ontwerp en fabrikantinstructie doorwerken in de egalisatie en de definitieve afwerking."
+],mistake:"Een bewegingsvoeg volledig dichtzetten kan spanningen, scheuren en ongewenste contactbruggen veroorzaken."},
+{title:"7. Scheuren en plaatselijke gebreken herstellen",body:[
+"Losse delen, holklinkende plekken en scheuren hebben een diagnose nodig vóórdat je er een egalisatielaag overheen giet.",
+"Herstel scheuren volgens het passende reparatiesysteem: een werkende scheur heeft mogelijk een andere oplossing dan een stabiele krimpscheur.",
+"Vul grote holten met een daarvoor geschikte reparatiemortel en respecteer de droog- en uithardingstijd."
+],mistake:"Een dikke laag egaline gebruiken om constructieve gebreken te verbergen is geen herstel."},
+{title:"8. Reinigen en geschikte primer aanbrengen",body:[
+"Reinig de vloer grondig. Verwijder stof, losse delen, olie en eventuele verontreiniging; schuur indien de fabrikant dit voor de toplaag voorschrijft.",
+"Kies primer op basis van de vastgestelde ondergrond, porositeit én de egalisatiemortel, bij voorkeur als één aantoonbaar compatibel systeem.",
+"Volg de exacte verdunning, verwerking, wachttijd en droogcriteria van het productblad. Controleer de voorgeschreven volgorde ten opzichte van randstroken en herstelproducten."
+],mistake:"Nooit een willekeurige primer kiezen omdat die bij een ander vloerproject goed werkte."},
+{title:"9. Materiaalhoeveelheid en logistiek voorbereiden",body:[
+"Bereken benodigde hoeveelheid met het verbruik in kg per m² per mm van het concreet geselecteerde product en de werkelijk benodigde gemiddelde laagdikte.",
+"Houd rekening met mengtijd, verwerkingstijd, ruimteklimaat, watervolume en beschikbare helpers. Bereid alle gereedschappen en mengkuipen vooraf voor.",
+"Bescherm de trap, benedenverdieping, deurkozijnen en overige kwetsbare elementen tegen eventuele lekkage en morsen."
+],mistake:"Een winkelmandje vullen op basis van het grootste hoogteverschil geeft geen betrouwbare materiaalhoeveelheid."},
+{title:"10. Egalisatiemortel mengen en aanbrengen",body:[
+"Meet het door de fabrikant voorgeschreven water nauwkeurig af en volg de voorgeschreven mengduur, eventuele rijptijd en verwerkingstemperatuur.",
+"Verdeel de mortel met daarvoor voorgeschreven rakel/egalisatiespaan of ander systeemgereedschap en werk nat-in-nat waar dat nodig is.",
+"Overschrijd de toegestane laagdikte niet. Een ontluchtingsrol is alleen geschikt wanneer het specifieke productsysteem dat voorschrijft."
+],mistake:"Extra water toevoegen om de egaline beter te laten vloeien kan de prestaties verslechteren."},
+{title:"11. Drogen, controleren en afwerken",body:[
+"Voorkom voortijdige belasting, tocht, extreme temperatuur en ongewenste vochtbelasting volgens het productblad.",
+"Respecteer zowel beloopbaarheid als de afzonderlijke vrijgave voor de uiteindelijke vloerafwerking; dat zijn niet dezelfde termijnen.",
+"Controleer vlakheid, eventuele kraters of scheuren en vochtwaarden volgens de vereisten van de afwerkvloer."
+],mistake:"Beloopbaar betekent niet automatisch dat verlijmd PVC of een andere afwerking al aangebracht mag worden."}
 ];
-var out='<span class="tag">Begeleid voorbeeld · geen definitief advies</span><h2>Jouw eerste klusplan</h2><p>Ondergrond: <b>'+bases[x.base]+'</b><br>Afwerking: <b>'+finishes[x.finish]+'</b></p><div class="warn">Begin niet met gieten totdat de ondergrond, het vochtgehalte en een compatibel egalisatiesysteem zijn bevestigd.</div>';
-if(checks.length)out+='<h3>Dit moet je nog controleren</h3><ul>'+checks.map(function(c){return "<li>"+esc(c)+"</li>"}).join("")+"</ul>";
-out+='<h3>Stappen op hoofdlijnen</h3><div class="steps">'+steps.map(function(s,i){return '<div class="step"><span class="number">'+(i+1)+'</span><div><strong>'+s[0]+'</strong><p class="small muted">'+s[1]+'</p></div></div>'}).join("")+'</div>';
-out+='<h3>Voorlopige materiaallijst</h3><p>Primer en egalisatiemortel uit één passend systeem, bouwstofzuiger, rei/laser, mengkuip, mengmachine, maatbeker, geschikte verdeelgereedschappen en PBM. Concrete producten worden pas na controle geselecteerd.</p>';
+var out='<span class="tag">Uitgebreide demonstratie · versie 1.1</span><h2>Jouw situatie</h2><p><b>Ondergrond:</b> '+esc(bases[x.base]||"Onbekend")+'<br><b>Afwerking:</b> '+esc(finishes[x.finish]||"Onbekend")+'</p><div class="warn"><strong>Geen definitieve vrijgave.</strong> Egaliseren op een nieuwbouwzolder vraagt kennis van ondergrond, restvocht, beweging en afwerking. Verwerk nog geen egaline als deze niet zijn vastgesteld.</div>';
+if(checks.length){out+='<h3>Persoonlijke aandachtspunten</h3><ul>'+checks.map(function(c){return '<li>'+esc(c)+'</li>'}).join("")+'</ul>'}
+out+='<h3>Uitgebreide werkwijze</h3><p class="muted small">Open iedere stap voor het waarom, de aanpak en een veelgemaakte fout. Dit is een checklist op basis van openbare vakinformatie; productspecifieke verwerking moet nog worden gecontroleerd.</p>';
+out+='<div class="steps">'+plan.map(function(s,i){return '<details class="guide" '+(i===0||i===3||i===4?'open':'')+'><summary>'+esc(s.title)+'</summary><div class="guide-body"><ul>'+s.body.map(function(b){return '<li>'+esc(b)+'</li>'}).join("")+'</ul><p class="small mistake"><b>Veelgemaakte fout:</b> '+esc(s.mistake)+'</p></div></details>'}).join("")+'</div>';
+out+='<h3>Materialen en gereedschap (nog te selecteren)</h3><div class="info"><b>Voor lekdicht voorbereiden:</b> geschikte acrylaatkit/afdichtpasta voor niet-bewegende kleine kieren, compatibele reparatiemortel voor grotere gaten, een passende randstrook en eventueel een fysieke randbegrenzing. Welke hiervan noodzakelijk zijn hangt af van de inspectie.<br><br><b>Voor egaliseren:</b> compatibel primer-/egalisatiesysteem; bouwstofzuiger, rei/laser, schuur- of voorbewerkingsgereedschap indien vereist, mengkuip, juiste mengmachine, maatbeker en geschikt verdeelgereedschap, handschoenen en oogbescherming.</div>';
 var mid={a:1.5,b:5.5,c:16}[x.gap];
-if(mid&&x.area>0&&x.base!=="wood")out+='<div class="info">Rekenvoorbeeld: bij '+esc(x.area)+' m² en een <b>veronderstelde</b> gemiddelde laagdikte van '+mid+' mm is het theoretische verbruik circa <b>'+Math.round(x.area*mid*1.5)+' kg</b> (fictieve rekenfactor 1,5 kg/m²/mm). Geen bestelling of productadvies: werkelijke laagdikte en verbruik zijn nog niet vastgesteld.</div>';
-out+='<h3>Technische bronnen</h3><a class="source" target="_blank" rel="noopener" href="https://nl.uzin.com/producten/productoverzicht">UZIN – product- en systeemdocumentatie ↗</a><a class="source" target="_blank" rel="noopener" href="https://www.ardex.nl/">ARDEX – fabrikant en technische documenten ↗</a><div class="warn">Dit zijn algemene fabrikantlinks, geen geverifieerde productkeuze voor jouw vloer. Deze versie heeft geen automatische actuele regelgevingcontrole.</div>';
+if(mid&&x.area>0&&x.base!=="wood")out+='<div class="info"><b>Alleen rekenvoorbeeld:</b> bij '+esc(x.area)+' m² en een <b>veronderstelde</b> gemiddelde laagdikte van '+mid+' mm kom je met een aangenomen verbruik van 1,5 kg/m²/mm theoretisch op '+Math.round(x.area*mid*1.5)+' kg. Dit is geen bestelling; productverbruik en werkelijke gemiddelde laagdikte moeten nog worden bepaald.</div>';
+out+='<h3>Vakinformatie en controleerbare bronnen</h3>'+
+'<a class="source" href="https://www.praxis.nl/klusadvies/stappenplan/egaliseren-van-je-vloer" target="_blank" rel="noopener noreferrer">Praxis — egaliseren, inclusief gaten en kieren dichten ↗</a>'+
+'<a class="source" href="https://www.forbo.com/eurocol/nl/services/tips-adviezen-en-systemen/tips-en-adviezen-vloertechniek/vloeren-van-houten-platen-egaliseren/pvov58" target="_blank" rel="noopener noreferrer">Forbo Eurocol — vloerplaten, naden en kieren ↗</a>'+
+'<a class="source" href="https://www.pci-afbouw.nl/nl/artikel/egalines-pci" target="_blank" rel="noopener noreferrer">PCI — randstroken en spanningen bij egalisatie ↗</a>'+
+'<a class="source" href="https://www.forbo.com/eurocol/nl/eurovisie/tips/zo-egaliseer-je-een-bestaande-tegelvloer-voor-installatie-van-een-vloerbedekking/pdsr90" target="_blank" rel="noopener noreferrer">Forbo Eurocol — diepe voegen en reparatiemortels ↗</a>'+
+'<div class="warn">Bronnen zijn voorbeelden van ondergrondspecifieke vakinformatie, geen bewijs dat hun genoemde producten geschikt zijn voor jouw zoldervloer. De app raadpleegt nog niet automatisch actuele technische productbladen.</div>';
 return out}
 function showPlan(){if(!latest){go("home");return}
 var body=latest.type==="floor"?floorAdvice(latest.inputs):'<span class="tag">AI-antwoord · niet gecontroleerd</span><div class="reply">'+esc(latest.answer)+'</div>';
@@ -115,7 +178,7 @@ function forgetKey(){apiKey="";settings();$("api-status").textContent="Demo"}
 function eraseAll(){if(confirm("Alle klussen op dit apparaat verwijderen?")){records=[];store();alert("Klussen gewist.")}}
 async function askAI(){
 root.innerHTML='<section class="panel"><h2>Je klusvraag wordt geanalyseerd…</h2><p class="small muted">AI-adviezen zijn nog niet onafhankelijk technisch gecontroleerd.</p></section>';
-var system="Je bent KlusKompas, een voorzichtige Nederlandstalige klusassistent. Vraag eerst naar ontbrekende cruciale omstandigheden (ondergrond, maten, bouwjaar, staat, afwerking, vocht, veiligheid), voordat je definitieve stappen of producten geeft. Geef een helder onderscheid tussen fabrikantvoorschriften, regels en algemene tips. Verzin nooit bronlinks, wetgeving, normen, productgeschiktheid of prijzen. Geef bij bouwconstructies, elektra, gas, asbest en koudemiddelen uitsluitend veilige algemene controles en verwijs naar deskundigen. Als details voldoende bekend zijn, geef secties: Situatie, Wat nog nodig is, Veiligheid, Materialen en gereedschap, Stappenplan, Kwaliteitscontrole, Wat te verifiëren. Geef de voorkeur aan kwalitatieve compatibele producten, niet willekeurige topmerken. Vraag: "+question;
+var system="Je bent KlusKompas, een kritische Nederlandstalige klusassistent. Dit is geen inspectie: verzin geen onbekende technische feiten. Begin met maximaal vijf cruciale vervolgvragen als het type ondergrond, projectomvang, technische staat, afwerking, vocht of veiligheid onbekend is. Beschrijf geen definitieve productkeuze of uitvoering voordat deze gegevens voldoende vaststaan. Geef bij elk advies een diepgaand traject van voorbereiding, alle kritieke kleine tussenstappen, uitvoering, droog-/uithardingscriteria en kwaliteitscontrole. Controleer systematisch (indien relevant): bestaande voegen, naden, lekwegen, leidingdoorvoeren, drempels, randisolatie, bescherming van andere ruimten, ondergrondhechting, scheuren, vocht, compatibiliteit van materialen, temperatuur en bijzondere risico’s. Voor vloeregaliseren: noem expliciet dat kleine onbedoelde kieren en gaten waar egaline kan weglekken met een passend middel worden afgedicht, maar dat functionele rand- en dilatatievoegen niet zomaar star worden dichtgezet. Leg steeds uit waarom, wat er mis kan gaan, hoe men controleert en wat specifiek uit actuele fabrikantdocumentatie moet worden gehaald. Gebruik secties: Situatie en ontbrekende informatie; Veiligheidsgrenzen; Inspectie en metingen; Voorbereiding incl. detailpunten; Materiaalkeuze met criteria; Geordend gedetailleerd stappenplan; Veelgemaakte fouten; Kwaliteitscontrole; Bronnen voor verificatie. Maak onderscheid tussen wetgeving, fabrikantvoorschriften en praktijkadvies. Verzin geen links, producteigenschappen, normen, prijzen of vergunninguitslagen. Wees terughoudend bij dragende constructie, elektra, gas, asbest en koudemiddelen; verwijs waar nodig naar bevoegd vakman. Vraag: "+question;
 var parts=[{text:system}];if(pic)parts.push({inline_data:{mime_type:"image/jpeg",data:pic}});
 try{var response=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":apiKey},body:JSON.stringify({contents:[{role:"user",parts:parts}],generationConfig:{temperature:0.25,maxOutputTokens:2700}})});
 var data=await response.json();if(!response.ok)throw new Error((data.error&&data.error.message)||"API-fout "+response.status);
